@@ -1,4 +1,4 @@
-module github.com/leo3838ok/black-helper
+module github.com/leo3838ok/line-bot-diyang-helper
 
 go 1.14
 
