@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -25,6 +26,15 @@ func main() {
 	http.ListenAndServe(addr, nil)
 }
 
+type Vote struct {
+	Success    bool   `json:"success"`
+	CreatedAt  string `json:"created_at"`
+	Left       int    `json:"left"`
+	Msg        string `json:"msg"`
+	Datetime   string `json:"datetime"`
+	Timestamps int    `json:"timestamps"`
+}
+
 func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	events, err := bot.ParseRequest(r)
 
@@ -43,30 +53,49 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 			case *linebot.TextMessage:
 				switch {
 				case strings.EqualFold(message.Text, "投起來"):
+					var content string
+
 					payload := &bytes.Buffer{}
 					writer := multipart.NewWriter(payload)
+					fbName := "詹立誠"
 					_ = writer.WriteField("stc_candidate_id", "42")
 					_ = writer.WriteField("fb_id", "3600467336633412")
-					_ = writer.WriteField("fb_name", "詹立誠")
+					_ = writer.WriteField("fb_name", fbName)
 					_ = writer.WriteField("fb_email", "leo3838ok@yahoo.com.tw")
 					err := writer.Close()
 					if err != nil {
 						log.Println(err)
 					}
 
-					client := &http.Client {
-					}
+					client := &http.Client{}
 					req, err := http.NewRequest("POST", "https://www.mtv.com.tw/api/stc/vote/3", payload)
 
 					if err != nil {
 						log.Println(err)
 					}
 					req.Header.Set("Content-Type", writer.FormDataContentType())
-					res, err := client.Do(req)
-					defer res.Body.Close()
-					body, err := ioutil.ReadAll(res.Body)
 
-					content := string(body)
+					for {
+						res, err := client.Do(req)
+						body, err := ioutil.ReadAll(res.Body)
+
+						var vote *Vote
+						if err = json.Unmarshal(body, &vote); err != nil {
+							log.Println(err)
+							break
+						}
+
+						if !vote.Success {
+							content += fbName + "已完成投票，" + vote.Msg + "\n"
+							break
+						}
+
+						if err = res.Body.Close(); err != nil {
+							log.Println(err)
+							break
+						}
+					}
+
 					if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(content)).Do(); err != nil {
 						log.Println(err)
 					}
