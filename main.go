@@ -26,15 +26,6 @@ func main() {
 	http.ListenAndServe(addr, nil)
 }
 
-type Vote struct {
-	Success    bool   `json:"success"`
-	CreatedAt  string `json:"created_at"`
-	Left       int    `json:"left"`
-	Msg        string `json:"msg"`
-	Datetime   string `json:"datetime"`
-	Timestamps int    `json:"timestamps"`
-}
-
 func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	events, err := bot.ParseRequest(r)
 
@@ -53,49 +44,11 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 			case *linebot.TextMessage:
 				switch {
 				case strings.EqualFold(message.Text, "投起來"):
-					var content string
+					file, _ := ioutil.ReadFile("fb.json")
+					fbInfos := FBInfos{}
+					_ = json.Unmarshal([]byte(file), &fbInfos)
 
-					payload := &bytes.Buffer{}
-					writer := multipart.NewWriter(payload)
-					fbName := "詹立誠"
-					_ = writer.WriteField("stc_candidate_id", "42")
-					_ = writer.WriteField("fb_id", "3600467336633412")
-					_ = writer.WriteField("fb_name", fbName)
-					_ = writer.WriteField("fb_email", "leo3838ok@yahoo.com.tw")
-					err := writer.Close()
-					if err != nil {
-						log.Println(err)
-					}
-
-					client := &http.Client{}
-					req, err := http.NewRequest("POST", "https://www.mtv.com.tw/api/stc/vote/3", payload)
-
-					if err != nil {
-						log.Println(err)
-					}
-					req.Header.Set("Content-Type", writer.FormDataContentType())
-
-					for {
-						res, err := client.Do(req)
-						body, err := ioutil.ReadAll(res.Body)
-
-						var vote *Vote
-						if err = json.Unmarshal(body, &vote); err != nil {
-							log.Println(err)
-							break
-						}
-
-						if !vote.Success {
-							content += fbName + "已完成投票，" + vote.Msg + "\n"
-							break
-						}
-
-						if err = res.Body.Close(); err != nil {
-							log.Println(err)
-							break
-						}
-					}
-
+					content := vote(fbInfos)
 					if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(content)).Do(); err != nil {
 						log.Println(err)
 					}
@@ -103,4 +56,54 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+func vote(infos FBInfos) string {
+	var content string
+
+	for _, info := range infos {
+		payload := &bytes.Buffer{}
+		writer := multipart.NewWriter(payload)
+		_ = writer.WriteField("stc_candidate_id", "42")
+		_ = writer.WriteField("fb_id", info.FbID)
+		_ = writer.WriteField("fb_name", info.FbName)
+		_ = writer.WriteField("fb_email", info.FbEmail)
+		err := writer.Close()
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		client := &http.Client{}
+		req, err := http.NewRequest("POST", "https://www.mtv.com.tw/api/stc/vote/3", payload)
+
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+
+		for {
+			res, err := client.Do(req)
+			body, err := ioutil.ReadAll(res.Body)
+
+			var vote *Vote
+			if err = json.Unmarshal(body, &vote); err != nil {
+				log.Println(err)
+				break
+			}
+
+			if !vote.Success {
+				content += info.FbName + "已完成投票，" + vote.Msg + "\n"
+				break
+			}
+
+			if err = res.Body.Close(); err != nil {
+				log.Println(err)
+				break
+			}
+		}
+	}
+
+	return content
 }
