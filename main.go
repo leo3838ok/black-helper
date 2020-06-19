@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strings"
@@ -40,9 +43,32 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 			case *linebot.TextMessage:
 				switch {
 				case strings.EqualFold(message.Text, "投起來"):
-					content := "投票成功"
+					payload := &bytes.Buffer{}
+					writer := multipart.NewWriter(payload)
+					_ = writer.WriteField("stc_candidate_id", "42")
+					_ = writer.WriteField("fb_id", "3600467336633412")
+					_ = writer.WriteField("fb_name", "詹立誠")
+					_ = writer.WriteField("fb_email", "leo3838ok@yahoo.com.tw")
+					err := writer.Close()
+					if err != nil {
+						log.Println(err)
+					}
+
+					client := &http.Client {
+					}
+					req, err := http.NewRequest("POST", "https://www.mtv.com.tw/api/stc/vote/3", payload)
+
+					if err != nil {
+						log.Println(err)
+					}
+					req.Header.Set("Content-Type", writer.FormDataContentType())
+					res, err := client.Do(req)
+					defer res.Body.Close()
+					body, err := ioutil.ReadAll(res.Body)
+
+					content := string(body)
 					if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(content)).Do(); err != nil {
-						log.Print(err)
+						log.Println(err)
 					}
 				}
 			}
