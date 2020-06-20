@@ -157,7 +157,7 @@ func list() (string, error) {
 	}
 
 	sort.SliceStable(candidates.Data, func(i, j int) bool {
-		return candidates.Data[i].VotesCount < candidates.Data[j].VotesCount
+		return candidates.Data[i].VotesCount > candidates.Data[j].VotesCount
 	})
 
 	for i, v := range candidates.Data {
