@@ -60,6 +60,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 
 func vote(infos FBInfos) string {
 	var content string
+	var voteCount int
 
 	for _, info := range infos {
 		payload := &bytes.Buffer{}
@@ -95,14 +96,24 @@ func vote(infos FBInfos) string {
 
 			if !vote.Success {
 				content += info.FbName + "已完成投票，" + vote.Msg + "\n"
+				if err = res.Body.Close(); err != nil {
+					log.Println(err)
+					break
+				}
 				break
 			}
+
+			voteCount++
 
 			if err = res.Body.Close(); err != nil {
 				log.Println(err)
 				break
 			}
 		}
+	}
+
+	if voteCount > 0 {
+		content += fmt.Sprintf("感謝大恩大德多賜了%v票\n", voteCount)
 	}
 
 	return content
