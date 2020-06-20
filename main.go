@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/line/line-bot-sdk-go/linebot"
@@ -52,6 +53,14 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(content)).Do(); err != nil {
 						log.Println(err)
 					}
+				case strings.EqualFold(message.Text, "報戰況"):
+					content, err := list()
+					if err != nil {
+						log.Println(err)
+					}
+					if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(content)).Do(); err != nil {
+						log.Println(err)
+					}
 				}
 			}
 		}
@@ -86,6 +95,11 @@ func vote(infos FBInfos) string {
 
 		for {
 			res, err := client.Do(req)
+			if err != nil {
+				log.Println(err)
+				break
+			}
+
 			body, err := ioutil.ReadAll(res.Body)
 
 			var vote *Vote
@@ -117,4 +131,47 @@ func vote(infos FBInfos) string {
 	}
 
 	return content
+}
+
+func list() (string, error) {
+	var content string
+
+	client := &http.Client {}
+	req, err := http.NewRequest("GET", "https://www.mtv.com.tw/api/stc/listall/3", nil)
+	if err != nil {
+		return "", err
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var candidates *Candidates
+	if err = json.Unmarshal(body, &candidates); err != nil {
+		return "", err
+	}
+
+	sort.SliceStable(candidates.Data, func(i, j int) bool {
+		return candidates.Data[i].VotesCount < candidates.Data[j].VotesCount
+	})
+
+	for i, v := range candidates.Data {
+		if v.ID == 42 {
+			content += fmt.Sprintf("目前暫居第%v名，", i + 1)
+			if i == 0 {
+				diff := v.VotesCount - candidates.Data[i + 1].VotesCount
+				content += fmt.Sprintf("贏過第2名%v票\n", diff)
+			} else {
+				diff := candidates.Data[i - 1].VotesCount - v.VotesCount
+				content += fmt.Sprintf("距離第%v名%v票\n", i - 1, diff)
+			}
+		}
+	}
+
+	return content, nil
 }
