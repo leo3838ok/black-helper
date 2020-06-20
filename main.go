@@ -112,7 +112,6 @@ func vote(infos FBInfos) string {
 				content += info.FbName + "已完成投票，" + vote.Msg + "\n"
 				if err = res.Body.Close(); err != nil {
 					log.Println(err)
-					break
 				}
 				break
 			}
