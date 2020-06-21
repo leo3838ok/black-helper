@@ -167,7 +167,7 @@ func list() (string, error) {
 				content += fmt.Sprintf("贏過第2名%v票\n", diff)
 			} else {
 				diff := candidates.Data[i - 1].VotesCount - v.VotesCount
-				content += fmt.Sprintf("距離第%v名%v票\n", i - 1, diff)
+				content += fmt.Sprintf("距離第%v名%v票\n", i, diff)
 			}
 		}
 	}
